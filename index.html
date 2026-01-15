@@ -5,63 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pause Follow-Up Sequence</title>
     <style>
-        /* All your existing CSS remains the same */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .container { background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); max-width: 500px; width: 100%; padding: 40px; }
         h1 { color: #2d3748; font-size: 24px; margin-bottom: 8px; }
         .subtitle { color: #718096; font-size: 14px; margin-bottom: 32px; }
-        .client-name { color: #667eea; font-weight: 600; }
         label { display: block; color: #2d3748; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
         input, textarea { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; margin-bottom: 20px; }
+        input:focus, textarea:focus { outline: none; border-color: #667eea; }
         .button-group { display: flex; gap: 12px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
         .btn-submit { background: #667eea; color: white; }
         .btn-cancel { background: #e2e8f0; color: #4a5568; }
         .hidden { display: none; }
-        .success-message, .error-message { display: none; text-align: center; }
+        .success-message, .error-message { text-align: center; }
+        .success-message h2 { color: #38a169; margin-bottom: 12px; }
+        .error-message h2 { color: #e53e3e; margin-bottom: 12px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Step 1: Find Client -->
-        <div id="lookup-form">
+        <!-- Main Form -->
+        <div id="pause-form">
             <h1>Pause Follow-Up Sequence</h1>
-            <p class="subtitle">First, let's find the client</p>
-            <form id="lookupForm">
-                <label for="clientEmail">Client Email *</label>
-                <input type="email" id="clientEmail" required placeholder="e.g., john@example.com">
+            <p class="subtitle">Enter client details to pause their sequence</p>
+            <form id="pauseForm">
+                <label for="clientName">Client Full Name *</label>
+                <input type="text" id="clientName" required placeholder="e.g., John Smith">
+                
+                <label for="reason">Reason for Pausing *</label>
+                <textarea id="reason" required placeholder="Why are we pausing this sequence?" rows="4"></textarea>
+                
                 <div class="button-group">
                     <button type="button" class="btn-cancel" onclick="window.close()">Cancel</button>
-                    <button type="submit" class="btn-submit">Find Client</button>
+                    <button type="submit" class="btn-submit">Pause Sequence</button>
                 </div>
             </form>
         </div>
-    
-        <!-- Step 2: Pause Reason -->
-        <div id="pause-form" class="hidden">
-            <h1>Pause Follow-Up</h1>
-            <p class="subtitle">Pausing for: <span class="client-name" id="displayClientName"></span></p>
-            <form id="pauseForm">
-                <input type="hidden" id="recordId">
-                <label for="reason">Reason for Pausing *</label>
-                <textarea id="reason" required placeholder="Why are we pausing?"></textarea>
-                <div class="button-group">
-                    <button type="button" class="btn-cancel" onclick="location.reload()">Back</button>
-                    <button type="submit" class="btn-submit">Confirm Pause</button>
-                </div>
-            </form>
-        </div>
-    
-        <!-- Messages -->
-        <div id="success-message" class="success-message">
+
+        <!-- Success Message -->
+        <div id="success-message" class="success-message hidden">
             <h2>✓ Sequence Paused</h2>
             <p>You can close this window now.</p>
         </div>
-        <div id="error-message" class="error-message">
+        
+        <!-- Error Message -->
+        <div id="error-message" class="error-message hidden">
             <h2>✕ Error</h2>
             <p id="errorText">Client not found.</p>
-            <button class="btn-submit" onclick="location.reload()">Try Again</button>
+            <button class="btn-submit" style="margin-top: 16px;" onclick="location.reload()">Try Again</button>
         </div>
     </div>
 
@@ -69,54 +62,39 @@
         // UPDATE THIS TO YOUR PRODUCTION URL IN n8n
         const WEBHOOK_URL = 'https://vannuysawning.app.n8n.cloud/webhook-test/pause-sequence';
         
-        const lookupForm = document.getElementById('lookupForm');
         const pauseForm = document.getElementById('pauseForm');
 
-        // Step 1: Handle Lookup
-        lookupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('clientEmail').value;
-            try {
-                const response = await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'lookup', clientEmail: email })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    document.getElementById('recordId').value = data.recordId;
-                    document.getElementById('displayClientName').textContent = data.clientName || email;
-                    document.getElementById('lookup-form').classList.add('hidden');
-                    document.getElementById('pause-form').classList.remove('hidden');
-                } else {
-                    showError("Client not found or no active sequence.");
-                }
-            } catch (err) { showError("Connection error."); }
-        });
-
-        // Step 2: Handle Final Pause Submission
         pauseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const clientName = document.getElementById('clientName').value;
+            const reason = document.getElementById('reason').value;
+            
             try {
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'pause',
-                        recordId: document.getElementById('recordId').value,
-                        reason: document.getElementById('reason').value
+                        clientName: clientName,
+                        reason: reason
                     })
                 });
-                if (response.ok) {
+                const data = await response.json();
+                
+                if (data.success || response.ok) {
                     document.getElementById('pause-form').classList.add('hidden');
-                    document.getElementById('success-message').style.display = 'block';
+                    document.getElementById('success-message').classList.remove('hidden');
+                } else {
+                    showError(data.message || "Client not found or no active sequence.");
                 }
-            } catch (err) { showError("Failed to pause sequence."); }
+            } catch (err) {
+                showError("Connection error. Please try again.");
+            }
         });
 
         function showError(msg) {
-            document.getElementById('lookup-form').classList.add('hidden');
-            document.getElementById('error-message').style.display = 'block';
+            document.getElementById('pause-form').classList.add('hidden');
+            document.getElementById('error-message').classList.remove('hidden');
             document.getElementById('errorText').textContent = msg;
         }
     </script>
