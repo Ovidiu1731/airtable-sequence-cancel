@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pause Follow-Up Sequence</title>
+    <style>
+        /* All your existing CSS remains the same */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .container { background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); max-width: 500px; width: 100%; padding: 40px; }
+        h1 { color: #2d3748; font-size: 24px; margin-bottom: 8px; }
+        .subtitle { color: #718096; font-size: 14px; margin-bottom: 32px; }
+        .client-name { color: #667eea; font-weight: 600; }
+        label { display: block; color: #2d3748; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+        input, textarea { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; margin-bottom: 20px; }
+        .button-group { display: flex; gap: 12px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-submit { background: #667eea; color: white; }
+        .btn-cancel { background: #e2e8f0; color: #4a5568; }
+        .hidden { display: none; }
+        .success-message, .error-message { display: none; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Step 1: Find Client -->
+        <div id="lookup-form">
+            <h1>Pause Follow-Up Sequence</h1>
+            <p class="subtitle">First, let's find the client</p>
+            <form id="lookupForm">
+                <label for="clientEmail">Client Email *</label>
+                <input type="email" id="clientEmail" required placeholder="e.g., john@example.com">
+                <div class="button-group">
+                    <button type="button" class="btn-cancel" onclick="window.close()">Cancel</button>
+                    <button type="submit" class="btn-submit">Find Client</button>
+                </div>
+            </form>
+        </div>
+    
+        <!-- Step 2: Pause Reason -->
+        <div id="pause-form" class="hidden">
+            <h1>Pause Follow-Up</h1>
+            <p class="subtitle">Pausing for: <span class="client-name" id="displayClientName"></span></p>
+            <form id="pauseForm">
+                <input type="hidden" id="recordId">
+                <label for="reason">Reason for Pausing *</label>
+                <textarea id="reason" required placeholder="Why are we pausing?"></textarea>
+                <div class="button-group">
+                    <button type="button" class="btn-cancel" onclick="location.reload()">Back</button>
+                    <button type="submit" class="btn-submit">Confirm Pause</button>
+                </div>
+            </form>
+        </div>
+    
+        <!-- Messages -->
+        <div id="success-message" class="success-message">
+            <h2>✓ Sequence Paused</h2>
+            <p>You can close this window now.</p>
+        </div>
+        <div id="error-message" class="error-message">
+            <h2>✕ Error</h2>
+            <p id="errorText">Client not found.</p>
+            <button class="btn-submit" onclick="location.reload()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        // UPDATE THIS TO YOUR PRODUCTION URL IN n8n
+        const WEBHOOK_URL = 'vannuysawning.app.n8n.cloud';
+        
+        const lookupForm = document.getElementById('lookupForm');
+        const pauseForm = document.getElementById('pauseForm');
+
+        // Step 1: Handle Lookup
+        lookupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('clientEmail').value;
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'lookup', clientEmail: email })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('recordId').value = data.recordId;
+                    document.getElementById('displayClientName').textContent = data.clientName || email;
+                    document.getElementById('lookup-form').classList.add('hidden');
+                    document.getElementById('pause-form').classList.remove('hidden');
+                } else {
+                    showError("Client not found or no active sequence.");
+                }
+            } catch (err) { showError("Connection error."); }
+        });
+
+        // Step 2: Handle Final Pause Submission
+        pauseForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'pause',
+                        recordId: document.getElementById('recordId').value,
+                        reason: document.getElementById('reason').value
+                    })
+                });
+                if (response.ok) {
+                    document.getElementById('pause-form').classList.add('hidden');
+                    document.getElementById('success-message').style.display = 'block';
+                }
+            } catch (err) { showError("Failed to pause sequence."); }
+        });
+
+        function showError(msg) {
+            document.getElementById('lookup-form').classList.add('hidden');
+            document.getElementById('error-message').style.display = 'block';
+            document.getElementById('errorText').textContent = msg;
+        }
+    </script>
+</body>
+</html>
