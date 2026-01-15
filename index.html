@@ -11,17 +11,20 @@
         h1 { color: #2d3748; font-size: 24px; margin-bottom: 8px; }
         .subtitle { color: #718096; font-size: 14px; margin-bottom: 32px; }
         label { display: block; color: #2d3748; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
-        input, textarea { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; margin-bottom: 20px; }
+        input, textarea { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; margin-bottom: 20px; transition: border-color 0.2s; }
         input:focus, textarea:focus { outline: none; border-color: #667eea; }
+        input.error { border-color: #e53e3e; }
         .button-group { display: flex; gap: 12px; }
         button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
         button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-submit { background: #667eea; color: white; }
         .btn-cancel { background: #e2e8f0; color: #4a5568; }
         .hidden { display: none; }
-        .success-message, .error-message { text-align: center; }
+        .success-message { text-align: center; }
         .success-message h2 { color: #38a169; margin-bottom: 12px; }
-        .error-message h2 { color: #e53e3e; margin-bottom: 12px; }
+        .error-banner { background: #fed7d7; color: #c53030; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; display: none; }
+        .error-banner.show { display: block; }
     </style>
 </head>
 <body>
@@ -30,6 +33,9 @@
         <div id="pause-form">
             <h1>Pause Follow-Up Sequence</h1>
             <p class="subtitle">Enter client details to pause their sequence</p>
+            
+            <div id="error-banner" class="error-banner"></div>
+            
             <form id="pauseForm">
                 <label for="clientName">Client Full Name *</label>
                 <input type="text" id="clientName" required placeholder="e.g., John Smith">
@@ -39,7 +45,7 @@
                 
                 <div class="button-group">
                     <button type="button" class="btn-cancel" onclick="window.close()">Cancel</button>
-                    <button type="submit" class="btn-submit">Pause Sequence</button>
+                    <button type="submit" class="btn-submit" id="submitBtn">Pause Sequence</button>
                 </div>
             </form>
         </div>
@@ -49,13 +55,6 @@
             <h2>✓ Sequence Paused</h2>
             <p>You can close this window now.</p>
         </div>
-        
-        <!-- Error Message -->
-        <div id="error-message" class="error-message hidden">
-            <h2>✕ Error</h2>
-            <p id="errorText">Client not found.</p>
-            <button class="btn-submit" style="margin-top: 16px;" onclick="location.reload()">Try Again</button>
-        </div>
     </div>
 
     <script>
@@ -63,11 +62,23 @@
         const WEBHOOK_URL = 'https://vannuysawning.app.n8n.cloud/webhook/pause-sequence';
         
         const pauseForm = document.getElementById('pauseForm');
+        const errorBanner = document.getElementById('error-banner');
+        const clientNameInput = document.getElementById('clientName');
+        const submitBtn = document.getElementById('submitBtn');
 
         pauseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const clientName = document.getElementById('clientName').value;
-            const reason = document.getElementById('reason').value;
+            
+            // Clear previous errors
+            errorBanner.classList.remove('show');
+            clientNameInput.classList.remove('error');
+            
+            // Disable button while processing
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            
+            const clientName = clientNameInput.value.trim();
+            const reason = document.getElementById('reason').value.trim();
             
             try {
                 const response = await fetch(WEBHOOK_URL, {
@@ -79,23 +90,31 @@
                         reason: reason
                     })
                 });
+                
                 const data = await response.json();
                 
-                if (data.success || response.ok) {
+                if (data.success === false) {
+                    // Show error, let user try again
+                    showError(data.message || "Client not found. Please check the name and try again.");
+                    clientNameInput.classList.add('error');
+                    clientNameInput.focus();
+                    clientNameInput.select();
+                } else {
+                    // Success - show success message
                     document.getElementById('pause-form').classList.add('hidden');
                     document.getElementById('success-message').classList.remove('hidden');
-                } else {
-                    showError(data.message || "Client not found or no active sequence.");
                 }
             } catch (err) {
                 showError("Connection error. Please try again.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Pause Sequence';
             }
         });
 
         function showError(msg) {
-            document.getElementById('pause-form').classList.add('hidden');
-            document.getElementById('error-message').classList.remove('hidden');
-            document.getElementById('errorText').textContent = msg;
+            errorBanner.textContent = msg;
+            errorBanner.classList.add('show');
         }
     </script>
 </body>
