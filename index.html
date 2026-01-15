@@ -23,6 +23,7 @@
         .hidden { display: none; }
         .success-message { text-align: center; }
         .success-message h2 { color: #38a169; margin-bottom: 12px; }
+        .success-message .client-name { color: #667eea; font-weight: 600; }
         .error-banner { background: #fed7d7; color: #c53030; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; display: none; }
         .error-banner.show { display: block; }
     </style>
@@ -52,7 +53,7 @@
 
         <!-- Success Message -->
         <div id="success-message" class="success-message hidden">
-            <h2>✓ Sequence Paused</h2>
+            <h2>✓ Sequence Paused for <span class="client-name" id="successClientName"></span></h2>
             <p>You can close this window now.</p>
         </div>
     </div>
@@ -100,7 +101,8 @@
                     clientNameInput.focus();
                     clientNameInput.select();
                 } else {
-                    // Success - show success message
+                    // Success - show success message with client name
+                    document.getElementById('successClientName').textContent = clientName;
                     document.getElementById('pause-form').classList.add('hidden');
                     document.getElementById('success-message').classList.remove('hidden');
                 }
