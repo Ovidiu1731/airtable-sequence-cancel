@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pause Sequence</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 48px 40px;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      background: #fff3cd;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 28px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .client-name {
+      text-align: center;
+      font-size: 16px;
+      font-weight: 600;
+      color: #e67e22;
+      margin-bottom: 28px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 120px;
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #e67e22;
+    }
+    .quick-reasons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .chip {
+      background: #f5f5f5;
+      border: 1.5px solid #ddd;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chip:hover, .chip.active {
+      background: #fff3cd;
+      border-color: #e67e22;
+      color: #e67e22;
+      font-weight: 600;
+    }
+    button[type="submit"] {
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px;
+      background: #e67e22;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button[type="submit"]:hover { background: #cf6d17; }
+    button[type="submit"]:disabled { background: #ccc; cursor: not-allowed; }
+    .success {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .success .big-icon { font-size: 48px; margin-bottom: 16px; }
+    .success h2 { color: #1a1a1a; margin-bottom: 8px; }
+    .success p { color: #666; font-size: 15px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div id="form-view">
+    <div class="icon">⏸️</div>
+    <h1>Pause Sequence</h1>
+    <div class="client-name" id="client-display"></div>
+
+    <label>Quick reasons</label>
+    <div class="quick-reasons">
+      <span class="chip" onclick="selectChip(this, 'Client asked to be contacted later')">Contact later</span>
+      <span class="chip" onclick="selectChip(this, 'Client is moving forward — deal closed')">Deal closed</span>
+      <span class="chip" onclick="selectChip(this, 'Client not interested')">Not interested</span>
+      <span class="chip" onclick="selectChip(this, 'Wrong contact — could not reach')">Wrong contact</span>
+      <span class="chip" onclick="selectChip(this, 'Client requested no more emails')">Unsubscribe request</span>
+    </div>
+
+    <label for="reason">Or describe the reason</label>
+    <textarea id="reason" placeholder="e.g. Client called and said they need 3 more weeks to decide..."></textarea>
+
+    <button type="submit" id="submit-btn" onclick="submitForm()">Pause Sequence</button>
+  </div>
+
+  <div class="success" id="success-view">
+    <div class="big-icon">✅</div>
+    <h2>Sequence Paused</h2>
+    <p id="success-message"></p>
+    <p style="margin-top:12px; font-size:13px; color:#aaa;">You can close this tab.</p>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const clientName = params.get('ClientName') || '';
+  const recordId = params.get('recordId') || '';
+
+  document.getElementById('client-display').textContent = clientName;
+
+  function selectChip(el, text) {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('reason').value = text;
+  }
+
+  async function submitForm() {
+    const reason = document.getElementById('reason').value.trim();
+    if (!reason) {
+      document.getElementById('reason').style.borderColor = 'red';
+      return;
+    }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Pausing...';
+
+    try {
+      await fetch('https://vannuysawning.app.n8n.cloud/webhook/pause-sequence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientName, recordId, reason })
+      });
+
+      document.getElementById('form-view').style.display = 'none';
+      document.getElementById('success-view').style.display = 'block';
+      document.getElementById('success-message').textContent =
+        `The follow-up sequence for ${clientName} has been stopped. Reason: "${reason}"`;
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Pause Sequence';
+      alert('Something went wrong. Please try again.');
+    }
+  }
+</script>
+</body>
+</html>
+```
+
+---
+
+## Updated Airtable Button Formula
+
+Only pass what the page actually needs — `ClientName` and `recordId`:
+```
+"https://YOUR-GITHUB-PAGES-URL/pause.html?" &
+"ClientName=" & ENCODE_URL_COMPONENT({Client Name} & "") &
+"&recordId=" & ENCODE_URL_COMPONENT(RECORD_ID())
+```
+
+---
+
+## What Changes in n8n
+
+Your workflow already handles the POST correctly. Two small fixes:
+
+**1. Search node** — you're currently searching by client name. Since you now have the `recordId`, update the Airtable search to **Get record by ID** instead — faster and more reliable.
+
+**2. Update node** — change the `Reason for Pause` mapping to:
+```
+={{ $('Webhook').item.json.body.reason }}
