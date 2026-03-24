@@ -189,27 +189,3 @@
 </script>
 </body>
 </html>
-```
-
----
-
-## Updated Airtable Button Formula
-
-Only pass what the page actually needs — `ClientName` and `recordId`:
-```
-"https://YOUR-GITHUB-PAGES-URL/pause.html?" &
-"ClientName=" & ENCODE_URL_COMPONENT({Client Name} & "") &
-"&recordId=" & ENCODE_URL_COMPONENT(RECORD_ID())
-```
-
----
-
-## What Changes in n8n
-
-Your workflow already handles the POST correctly. Two small fixes:
-
-**1. Search node** — you're currently searching by client name. Since you now have the `recordId`, update the Airtable search to **Get record by ID** instead — faster and more reliable.
-
-**2. Update node** — change the `Reason for Pause` mapping to:
-```
-={{ $('Webhook').item.json.body.reason }}
